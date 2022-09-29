@@ -1,28 +1,28 @@
 data "aws_caller_identity" "current" {}
 
+data "aws_iam_policy_document" "datadog_integration_assume" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${var.datadog_account_id}:root"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "sts:ExternalId"
+      values   = [var.external_id]
+    }
+  }
+}
+
 resource "aws_iam_role" "datadog_integration" {
   name = var.role_name
   path = "/"
 
-  assume_role_policy = <<JSON
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Principal": {
-        "AWS": "arn:aws:iam::${var.datadog_account_id}:root"
-      },
-      "Action": "sts:AssumeRole",
-      "Condition": {
-        "StringEquals": {
-          "sts:ExternalId": "${var.external_id}"
-        }
-      }
-    }
-  ]
-}
-JSON
+  assume_role_policy = data.aws_iam_policy_document.datadog_integration_assume.json
 }
 
 resource "aws_iam_role_policy" "datadog_integration" {
@@ -37,6 +37,7 @@ resource "aws_iam_role_policy" "datadog_integration" {
       "Action": [
         "apigateway:GET",
         "autoscaling:Describe*",
+        "backup:List*",
         "budgets:ViewBudget",
         "cloudfront:GetDistributionConfig",
         "cloudfront:ListDistributions",
@@ -56,15 +57,18 @@ resource "aws_iam_role_policy" "datadog_integration" {
         "ecs:List*",
         "elasticache:Describe*",
         "elasticache:List*",
-        "elasticfilesystem:DescribeAccessPoints",
         "elasticfilesystem:DescribeFileSystems",
         "elasticfilesystem:DescribeTags",
+        "elasticfilesystem:DescribeAccessPoints",
         "elasticloadbalancing:Describe*",
         "elasticmapreduce:List*",
         "elasticmapreduce:Describe*",
         "es:ListTags",
         "es:ListDomainNames",
         "es:DescribeElasticsearchDomains",
+        "events:CreateEventBus",
+        "fsx:DescribeFileSystems",
+        "fsx:ListTagsForResource",
         "health:DescribeEvents",
         "health:DescribeEventDetails",
         "health:DescribeAffectedEntities",
@@ -72,10 +76,15 @@ resource "aws_iam_role_policy" "datadog_integration" {
         "kinesis:Describe*",
         "lambda:GetPolicy",
         "lambda:List*",
-        "logs:TestMetricFilter",
-        "logs:PutSubscriptionFilter",
         "logs:DeleteSubscriptionFilter",
+        "logs:DescribeLogGroups",
+        "logs:DescribeLogStreams",
         "logs:DescribeSubscriptionFilters",
+        "logs:FilterLogEvents",
+        "logs:PutSubscriptionFilter",
+        "logs:TestMetricFilter",
+        "organizations:Describe*",
+        "organizations:List*",
         "rds:Describe*",
         "rds:List*",
         "redshift:DescribeClusters",
@@ -93,15 +102,16 @@ resource "aws_iam_role_policy" "datadog_integration" {
         "sqs:ListQueues",
         "states:ListStateMachines",
         "states:DescribeStateMachine",
-        "support:*",
+        "support:DescribeTrustedAdvisor*",
+        "support:RefreshTrustedAdvisorCheck",
         "tag:GetResources",
         "tag:GetTagKeys",
         "tag:GetTagValues",
         "xray:BatchGetTraces",
         "xray:GetTraceSummaries"
       ],
-      "Resource": "*",
-      "Effect": "Allow"
+      "Effect": "Allow",
+      "Resource": "*"
     }
   ]
 }
